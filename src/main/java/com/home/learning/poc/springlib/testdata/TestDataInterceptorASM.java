@@ -1,5 +1,6 @@
 package com.home.learning.poc.springlib.testdata;
 
+import com.home.learning.poc.springlib.model.Action;
 import com.home.learning.poc.springlib.model.Keyword;
 import com.home.learning.poc.springlib.model.SubMethod;
 import org.objectweb.asm.*;
@@ -8,10 +9,27 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class TestDataInterceptorASM {
+
+    public void extractActionKeys(Class<?> clazz, String packageName, List<Action> actionList) throws IOException {
+        System.out.println("Extracting methods from "+ clazz.getName());
+        for (Method method : clazz.getMethods()) {
+            if(!(method.getReturnType().equals(void.class) && method.getModifiers()== Modifier.PUBLIC))
+                continue;
+            Set<String> testDataKeys = Arrays.stream(method.getParameters()).map(Parameter::getName).collect(Collectors.toSet());
+            Action action = new Action(clazz.getName(), method.getName());
+            if (!testDataKeys.isEmpty()) {
+                action.setTestData(testDataKeys);
+            }
+            actionList.add(action);
+        }
+
+    }
 
     public void extractTestDataKeys(Class<?> clazz, List<Keyword> keywordList) throws IOException {
 

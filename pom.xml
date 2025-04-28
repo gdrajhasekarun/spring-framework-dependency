@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.home.learning.poc</groupId>
     <artifactId>spring-lib</artifactId>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.7-SNAPSHOT</version>
     <name>spring-lib</name>
     <description>spring-lib</description>
     <url/>

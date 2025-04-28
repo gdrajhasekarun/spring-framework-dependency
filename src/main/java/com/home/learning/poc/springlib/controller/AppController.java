@@ -1,26 +1,40 @@
 package com.home.learning.poc.springlib.controller;
 
+import com.home.learning.poc.springlib.model.Action;
 import com.home.learning.poc.springlib.model.Keyword;
 import com.home.learning.poc.springlib.model.Steps;
 import com.home.learning.poc.springlib.model.TestCase;
 import com.home.learning.poc.springlib.service.TestCaseExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
-public class Controller {
+public class AppController {
 
     TestCaseExecutor testCaseExecutor;
-    public Controller(TestCaseExecutor testCaseExecutor){
+    public AppController(TestCaseExecutor testCaseExecutor){
         this.testCaseExecutor = testCaseExecutor;
     }
+
+    @GetMapping("/action-list-aop")
+    public ResponseEntity<List<Action>> getAllActionsAop(@RequestParam(name = "applications", required = false) List<String> applications) throws Exception {
+        return ResponseEntity.ok(this.testCaseExecutor.getAllActions(applications));
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
     @PostMapping("/run-testcase")
     public ResponseEntity<String> runTestCases(@RequestBody TestCase testCase) {
@@ -50,4 +64,6 @@ public class Controller {
     public ResponseEntity<List<Steps>> getAllStepsAop() throws Exception {
         return ResponseEntity.ok(this.testCaseExecutor.getAllKeywordsWithTestSteps());
     }
+
+
 }

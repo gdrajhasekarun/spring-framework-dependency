@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.home.learning.poc.springlib.config.PrefixConfig

@@ -1,6 +1,7 @@
 package com.home.learning.poc.springlib.service;
 
 import com.home.learning.poc.springlib.annotation.TestDataKeys;
+import com.home.learning.poc.springlib.model.Action;
 import com.home.learning.poc.springlib.model.Keyword;
 import com.home.learning.poc.springlib.model.Steps;
 import com.home.learning.poc.springlib.testdata.TestDataInterceptorASM;
@@ -16,6 +17,7 @@ import java.net.URLDecoder;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 
 @Service
 public class TestCaseExecutor {
@@ -80,6 +82,31 @@ public class TestCaseExecutor {
         return testSteps;
     }
 
+    public List<Action> getAllActions(List<String> applications) throws Exception {
+        Set<Class<?>> keywordClasses = filterClassName(applications, getAllClassesInKeywordPackage("interactions"));
+        List<Action> testSteps = new ArrayList<>();
+        for(Class<?> keywordClass: keywordClasses) {
+            this.testDataInterceptorASM.extractActionKeys(keywordClass, "interactions", testSteps);
+        }
+        return testSteps;
+    }
+
+    private Set<Class<?>> filterClassName(List<String> applications, Set<Class<?>> classes){
+        if(applications == null)
+            return classes.stream().filter(clone -> !clone.getName().toLowerCase().contains("springlib")).collect(Collectors.toSet());
+        Set<Class<?>> appClasses = new HashSet<>();
+        for(String application: applications){
+            Set<Class<?>> targetClasses = classes.stream().filter(clsName -> {
+//                return applications.contains(clsName.getName().substring(clsName.getName().lastIndexOf(".") + 1 ));
+                return clsName.getName().toLowerCase().endsWith(application.toLowerCase());
+            }).collect(Collectors.toSet());
+            appClasses.addAll(!targetClasses.isEmpty() ? targetClasses:
+                    classes.stream().filter(clone -> clone.getName().toLowerCase().contains("springlib")).collect(Collectors.toSet()));
+        }
+        return appClasses;
+
+    }
+
     private boolean isMethodFound(Class<?>keywordClass, String method){
         return Arrays.stream(keywordClass.getMethods()).filter(method1 -> method1.getName().equals(method)).findFirst().orElse(null)!=null;
     }
@@ -90,26 +117,28 @@ public class TestCaseExecutor {
 //    }
 
 
-
     private Set<Class<?>> getAllClassesInKeywordPackage(String targetPackageName) throws Exception {
         Set<String> packages = getAllPackageNamesFromClasspath();
-        String packageName = packages.stream().filter(pkg -> pkg.endsWith(targetPackageName)).findFirst().orElse(null);
-        if(packageName == null)
+        Set<String> packageNames = packages.stream().filter(pkg -> pkg.endsWith(targetPackageName)).collect(Collectors.toSet());
+        if(packageNames.isEmpty())
             throw new Exception("No Package ends with the name" + targetPackageName);
         Set<Class<?>> classes = new HashSet<>();
         try{
-            String path = packageName.replace('.', '/');
-            Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
+            for (String packageName : packageNames) {
+                String path = packageName.replace('.', '/');
+                Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
 
-            while (resources.hasMoreElements()) {
-                URL resource = resources.nextElement();
-                if (resource.getProtocol().equals("file")) {
-                    classes.addAll(findClassesInDirectory(resource.getPath(), packageName));
-                } else if (resource.getProtocol().equals("jar")) {
-                    String jarPath = resource.getFile().split("!")[0].substring(5);
-                    classes.addAll(findClassesInJar(jarPath, path));
+                while (resources.hasMoreElements()) {
+                    URL resource = resources.nextElement();
+                    if (resource.getProtocol().equals("file")) {
+                        classes.addAll(findClassesInDirectory(resource.getPath(), packageName));
+                    } else if (resource.getProtocol().equals("jar")) {
+                        String jarPath = resource.getFile().split("!")[0].substring(5);
+                        classes.addAll(findClassesInJar(jarPath, path));
+                    }
                 }
             }
+
         } catch (ClassNotFoundException | IOException e) {
             throw new RuntimeException(e);
         }
@@ -160,12 +189,28 @@ public class TestCaseExecutor {
                 if ("file".equals(protocol)) {
                     File rootDir = new File(resource.toURI());
                     findPackagesInDirectory(rootDir, "", packageNames);
-                } else if ("jar".equals(protocol)) {
-                    String jarPath = resource.getPath().replaceFirst("^file:", "").replaceAll("!.*$", "");
-                    try (JarFile jarFile = new JarFile(URLDecoder.decode(jarPath, "UTF-8"))) {
-                        for (JarEntry entry : Collections.list(jarFile.entries())) {
-                            if (entry.getName().endsWith(".class")) {
-                                String packageName = getPackageNameFromClassPath(entry.getName());
+//                } else if ("jar".equals(protocol)) {
+//                    String jarPath = resource.getPath().replaceFirst("^file:", "").replaceAll("!.*$", "");
+//                    try (JarFile jarFile = new JarFile(URLDecoder.decode(jarPath, "UTF-8"))) {
+//                        for (JarEntry entry : Collections.list(jarFile.entries())) {
+//                            if (entry.getName().endsWith(".class")) {
+//                                String packageName = getPackageNameFromClassPath(entry.getName());
+//                                if (packageName != null) {
+//                                    packageNames.add(packageName);
+//                                }
+//                            }
+//                        }
+//                    }
+                }
+            }
+            String[] classpathEntries = System.getProperty("java.class.path").split(File.pathSeparator);
+            for (String entry : classpathEntries) {
+                File file = new File(entry);
+                if (file.isFile() && file.getName().endsWith(".jar")) {
+                    try (JarFile jarFile = new JarFile(file)) {
+                        for (JarEntry jarEntry : Collections.list(jarFile.entries())) {
+                            if (jarEntry.getName().endsWith(".class")) {
+                                String packageName = getPackageNameFromClassPath(jarEntry.getName());
                                 if (packageName != null) {
                                     packageNames.add(packageName);
                                 }
